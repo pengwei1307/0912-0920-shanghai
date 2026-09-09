@@ -47,10 +47,14 @@
   }
   .serif{ font-family:"Songti TC","Noto Serif TC","Source Han Serif TC","PMingLiU",serif; }
 
-  /* 直式水彩背景，固定不隨內容捲動 */
+  /* 水彩背景：上下兩段各自靠邊，照寬度縮放，不裁切 */
   .bgart{
     position:fixed; inset:0; z-index:0; pointer-events:none;
-    background:url('bg.jpg') center top / cover no-repeat;
+    background-color:#FAF6EE;
+    background-image:url('bg-top.jpg'),url('bg-bottom.jpg');
+    background-position:center top,center bottom;
+    background-size:100% auto,100% auto;
+    background-repeat:no-repeat,no-repeat;
   }
 
   /* 隱藏水平捲軸（日期列） */
