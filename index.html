@@ -41,16 +41,17 @@
   body{
     font-family:"PingFang TC","Heiti TC","Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif;
     color:var(--ink);
-    background:
-      linear-gradient(180deg,
-        #F7F3E9 0px,      /* 頁首上緣的宣紙米白 */
-        #EFF1E6 260px,    /* 接住 banner 底部的青灰綠 #C6CBBC 的淡化版 */
-        #E9EEE4 55%,
-        #E3EAE0 100%);
+    background:linear-gradient(180deg,#FDFBF5 0px,#FAF6EE 320px,#F6F2E8 100%);
     background-attachment:fixed;
     min-height:100vh;
   }
   .serif{ font-family:"Songti TC","Noto Serif TC","Source Han Serif TC","PMingLiU",serif; }
+
+  /* 直式水彩背景，固定不隨內容捲動 */
+  .bgart{
+    position:fixed; inset:0; z-index:0; pointer-events:none;
+    background:url('bg.jpg') center top / cover no-repeat;
+  }
 
   /* 隱藏水平捲軸（日期列） */
   .no-bar::-webkit-scrollbar{ display:none; }
@@ -80,7 +81,7 @@
   }
   .ticket::before,.ticket::after{
     content:''; position:absolute; width:22px; height:22px; border-radius:50%;
-    background:#EFF2E9; top:50%; transform:translateY(-50%);
+    background:#FAF6EE; top:50%; transform:translateY(-50%);
     box-shadow:inset 0 0 0 1px var(--line);
   }
   .ticket::before{ left:-11px; } .ticket::after{ right:-11px; }
@@ -115,24 +116,27 @@
 <body>
 <div id="app" v-cloak>
 
+  <div class="bgart"></div>
+
+
   <!-- ============ 頁首 Banner ============ -->
   <header class="relative">
     <div class="w-full overflow-hidden relative" style="height:250px">
       <img src="banner.png" alt="上海・蘇州・杭州" class="w-full h-full object-cover">
       <!-- 底部淡化，讓圖片溶進頁面底色 -->
-      <div class="absolute inset-x-0 bottom-0 pointer-events-none" style="height:96px;
+      <div class="absolute inset-x-0 bottom-0 pointer-events-none" style="height:54px;
            background:linear-gradient(180deg,
-             rgba(252,251,246,0) 0%,
-             rgba(252,251,246,.45) 45%,
-             rgba(252,251,246,.85) 78%,
-             #FCFBF6 100%)"></div>
+             rgba(250,246,238,0) 0%,
+             rgba(250,246,238,.28) 55%,
+             rgba(250,246,238,.72) 85%,
+             #FAF6EE 100%)"></div>
     </div>
 
   </header>
 
   <!-- ============ 主內容（負邊距上拉，與圓弧銜接） ============ -->
   <main class="relative z-10 min-h-[70vh] pb-32"
-        style="background:linear-gradient(180deg,rgba(253,252,247,.95) 0%,rgba(244,247,239,.78) 45%,rgba(238,243,235,.62) 100%)">
+        style="background:transparent">
 
     <!-- 分頁按鈕：貼在內容區頂端，捲動時跟著走，不蓋到 banner -->
     <div class="sticky top-2 z-40 flex justify-end px-4 pt-3 pb-1 pointer-events-none">
@@ -191,7 +195,7 @@
             </div>
 
             <!-- 機票卡 -->
-            <div v-if="it.cat==='航班'" class="ticket p-3.5 mb-1 flex gap-3 trip-card"
+            <div v-if="it.cat==='航班'" class="ticket p-3.5 mt-2 mb-4 flex gap-3 trip-card"
                  :class="dragI===i ? 'card-drag' : ''"
                  :style="dragI===i ? {transform:'translateY('+dragY+'px) scale(1.02)', zIndex:50, position:'relative'} : {}">
 
@@ -324,7 +328,7 @@
             <span class="text-[12px] text-ink2">{{ h.nights }}</span>
           </div>
           <div class="text-[13px] text-ink2 mt-1">{{ h.addr }}</div>
-          <div class="text-[13px] text-ink2">房價 ¥{{ h.price }}　·　約 NT${{ Math.round(h.price*rate).toLocaleString() }}</div>
+          <div class="text-[13px] text-ink2">房價 NT${{ h.price.toLocaleString() }}　·　約 ¥{{ Math.round(h.price/rate).toLocaleString() }}</div>
           <div class="flex gap-2 mt-2.5">
             <a :href="'tel:'+h.tel" class="px-3 py-1.5 rounded-full bg-white border border-[rgba(61,74,71,.12)] text-[13px]">撥電話</a>
             <a :href="amap(h.name,h.city)" target="_blank" class="px-3 py-1.5 rounded-full bg-[#7D9E88] text-white text-[13px]">高德導航</a>
@@ -571,7 +575,7 @@ var P = function (n, cat, lat, lng, o) {
 var SEED = {
   '2026-09-12': [
     { id: uid(), cat: '航班', name: 'CX449 國泰航空', from: 'KHH', to: 'PVG', dep: '07:30', arr: '13:15', dur: '含香港轉機 1h20m', note: '高雄出發，香港轉機後抵達浦東' },
-    P('亞朵S 天山路', '住宿', 31.210, 121.396, { note: '12–15 三晚，¥8400；先放行李再出門' }),
+    P('亞朵S 天山路', '住宿', 31.210, 121.396, { note: '12–15 三晚，NT$8,400；先放行李再出門' }),
     P('國家會展中心 虹館', '其他', 31.192, 121.301, { hours: '19:00 開始' })
   ],
   '2026-09-13': [
@@ -595,7 +599,7 @@ var SEED = {
   '2026-09-15': [
     P('嘉薈市場', '美食', 31.210, 121.400, { hours: '早上', note: '早餐' }),
     P('高鐵 上海→杭州', '其他', 31.194, 121.320, { note: '虹橋出發，約 1 小時' }),
-    P('桔子 西湖湖濱解放路', '住宿', 30.247, 120.167, { note: '15–16 一晚，¥2300，Agoda 訂' }),
+    P('桔子 西湖湖濱解放路', '住宿', 30.247, 120.167, { note: '15–16 一晚，NT$2,300，Agoda 訂' }),
     P('西湖', '景點', 30.245, 120.145, { ticket: '免費' }),
     P('武林夜市', '購物', 30.276, 120.165, { hours: '18:00–23:00' }),
     P('夜騎西湖', '其他', 30.245, 120.145, { note: '掃共享單車繞湖一圈' })
@@ -603,14 +607,14 @@ var SEED = {
   '2026-09-16': [
     P('靈隱寺', '景點', 30.241, 120.101, { hours: '07:00–18:00', ticket: '飛來峰 ¥45 + 寺 ¥30' }),
     P('烏鎮西柵', '其他', 30.748, 120.487, { note: '包車、大巴或高鐵都可以' }),
-    P('遊客大廳 入住托運行李', '住宿', 30.746, 120.489, { note: '16–17 一晚，¥2500；順便問早茶客預約' }),
+    P('遊客大廳 入住托運行李', '住宿', 30.746, 120.489, { note: '16–17 一晚，NT$2,500；順便問早茶客預約' }),
     P('西柵景區夜遊', '景點', 30.748, 120.487, { ticket: '¥150' })
   ],
   '2026-09-17': [
     P('早茶客', '美食', 30.748, 120.487, { hours: '07:30–09:30', note: '要先預約' }),
     P('清晨的西柵', '景點', 30.748, 120.487, { note: '早點出門，人最少' }),
     P('大巴 烏鎮→上海虹橋', '其他', 31.194, 121.320, { note: '約 1 小時 40 分' }),
-    P('漢庭 中山公園江蘇路', '住宿', 31.221, 121.426, { note: '17–20 三晚，¥7158' })
+    P('漢庭 中山公園江蘇路', '住宿', 31.221, 121.426, { note: '17–20 三晚，NT$7,158' })
   ],
   '2026-09-18': [
     P('中國證券博物館', '景點', 31.238, 121.487, { hours: '09:30–16:00', ticket: '免費，要預約' }),
