@@ -94,6 +94,8 @@
   /* 交通時間連接線 */
   .link-line{ width:1px; height:14px; background:linear-gradient(180deg,rgba(61,74,71,.05),rgba(61,74,71,.28)); margin:0 auto; }
   .link-line.rev{ background:linear-gradient(180deg,rgba(61,74,71,.28),rgba(61,74,71,.05)); }
+  /* 沒填交通時間時的連接線 */
+  .link-plain{ width:1px; height:26px; background:rgba(61,74,71,.18); margin:0 auto; }
 
   .fab{
     box-shadow:0 10px 26px -8px rgba(61,74,71,.55);
@@ -188,14 +190,17 @@
         <div ref="list">
           <div v-for="(it,i) in list" :key="it.id">
 
-            <!-- 交通時間 -->
-            <div class="flex flex-col items-center py-0.5" v-if="leg(i)">
-              <div class="link-line"></div>
-              <div class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/70 border border-[rgba(61,74,71,.10)] text-[12.5px] text-ink2">
-                <span class="w-4 h-4 inline-block" v-html="moveIcon(leg(i).mode)"></span>
-                <span>{{ leg(i).label }} 約 {{ leg(i).min }} 分</span>
-              </div>
-              <div class="link-line rev"></div>
+            <!-- 時間線：有填交通就顯示膠囊，沒填就只留一條線 -->
+            <div class="flex flex-col items-center py-0.5" v-if="i>0">
+              <template v-if="leg(i)">
+                <div class="link-line"></div>
+                <div class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/70 border border-[rgba(61,74,71,.10)] text-[12.5px] text-ink2">
+                  <span class="w-4 h-4 inline-block" v-html="moveIcon(leg(i).mode)"></span>
+                  <span>{{ leg(i).text }}</span>
+                </div>
+                <div class="link-line rev"></div>
+              </template>
+              <div v-else class="link-plain"></div>
             </div>
 
             <!-- 機票卡 -->
@@ -468,6 +473,23 @@
           <div v-if="form.cat==='景點'"><label class="fld">門票</label><input v-model="form.ticket" placeholder="¥40"></div>
         </template>
 
+        <template v-if="form.cat!=='航班'">
+          <div class="pt-1">
+            <label class="fld">從上一個行程到這裡的交通（選填）</label>
+            <div class="grid grid-cols-2 gap-3">
+              <select v-model="form.mode">
+                <option value="">不指定</option>
+                <option value="taxi">打車</option>
+                <option value="walk">走路</option>
+                <option value="train">高鐵</option>
+                <option value="metro">地鐵</option>
+              </select>
+              <input type="number" inputmode="numeric" v-model="form.mins" placeholder="分鐘">
+            </div>
+            <p class="text-[12px] text-ink2 mt-1.5">留空就不顯示這段交通。</p>
+          </div>
+        </template>
+
         <div><label class="fld">特色 & 備註</label><textarea v-model="form.note" rows="3"></textarea></div>
       </div>
 
@@ -562,13 +584,6 @@ var CITY = {
   '2026-09-18': ['上海', 31.23, 121.47], '2026-09-19': ['上海', 31.23, 121.47],
   '2026-09-20': ['上海', 31.23, 121.47]
 };
-/* 前一晚住的飯店（算當天第一段交通用） */
-var NIGHT = {
-  '2026-09-13': ['亞朵S 天山路', 31.210, 121.396], '2026-09-14': ['亞朵S 天山路', 31.210, 121.396],
-  '2026-09-15': ['亞朵S 天山路', 31.210, 121.396], '2026-09-16': ['桔子 西湖湖濱', 30.247, 120.167],
-  '2026-09-17': ['烏鎮西柵民宿', 30.746, 120.489], '2026-09-18': ['漢庭 中山公園', 31.221, 121.426],
-  '2026-09-19': ['漢庭 中山公園', 31.221, 121.426], '2026-09-20': ['漢庭 中山公園', 31.221, 121.426]
-};
 
 var P = function (n, cat, lat, lng, o) {
   var x = { id: uid(), name: n, cat: cat, lat: lat, lng: lng, hours: '', ticket: '', note: '' };
@@ -636,6 +651,37 @@ var SEED = {
 
 var DOW = [['Sun', '日'], ['Mon', '一'], ['Tue', '二'], ['Wed', '三'], ['Thu', '四'], ['Fri', '五'], ['Sat', '六']];
 
+/* 每天晚上住哪裡 */
+var STAY = {
+  '2026-09-12': ['亞朵S 天山路', '12–15 三晚，NT$8,400；先放行李再出門'],
+  '2026-09-13': ['亞朵S 天山路', '第 2 晚'],
+  '2026-09-14': ['亞朵S 天山路', '第 3 晚'],
+  '2026-09-15': ['桔子 西湖湖濱解放路', '15–16 一晚，NT$2,300，Agoda 訂'],
+  '2026-09-16': ['遊客大廳 入住托運行李', '16–17 一晚，NT$2,500；順便問早茶客預約'],
+  '2026-09-17': ['漢庭 中山公園江蘇路', '17–20 三晚，NT$7,158'],
+  '2026-09-18': ['漢庭 中山公園江蘇路', '第 2 晚'],
+  '2026-09-19': ['漢庭 中山公園江蘇路', '第 3 晚']
+};
+/* 缺住宿卡片的日子補上，已經有的不動 */
+function ensureStay(map) {
+  var n = 0;
+  Object.keys(STAY).forEach(function (d) {
+    var a = map[d]; if (!a) { return; }
+    if (a.some(function (x) { return x.cat === '住宿'; })) { return; }
+    a.push(P(STAY[d][0], '住宿', null, null, { note: STAY[d][1] }));
+    n++;
+  });
+  return n;
+}
+ensureStay(SEED);
+
+/* 每天的住宿卡片一律排到最後 */
+Object.keys(SEED).forEach(function (d) {
+  var a = SEED[d];
+  SEED[d] = a.filter(function (x) { return x.cat !== '住宿'; })
+             .concat(a.filter(function (x) { return x.cat === '住宿'; }));
+});
+
 /* 原封不動的原始行程，重設時用它還原 */
 var SEED_RAW = JSON.stringify(SEED);
 var toastTimer = null;
@@ -695,7 +741,7 @@ Vue.createApp({
     total: function () { return this.costs.reduce(function (s, c) { return s + Number(c.amt || 0); }, 0); }
   },
 
-  mounted: function () { this.getWeather(); this.getRate(); },
+  mounted: function () { this.fixCurrency(); this.addStayEachDay(); this.moveStayLast(); this.getWeather(); this.getRate(); },
 
   methods: {
     /* --- 基本 --- */
@@ -714,29 +760,23 @@ Vue.createApp({
 
     /* --- 交通時間估算 --- */
     leg: function (i) {
-      var cur = this.list[i]; if (!cur || cur.cat === '航班' || !cur.lat) return null;
-      var a;
-      if (i === 0) { var n = NIGHT[this.active]; if (!n) return null; a = { lat: n[1], lng: n[2] }; }
-      else {
-        for (var j = i - 1; j >= 0; j--) { if (this.list[j].lat) { a = this.list[j]; break; } }
-        if (!a) return null;
-      }
-      var R = 6371, t = Math.PI / 180;
-      var dLat = (cur.lat - a.lat) * t, dLng = (cur.lng - a.lng) * t;
-      var h = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-              Math.cos(a.lat * t) * Math.cos(cur.lat * t) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
-      var km = 2 * R * Math.asin(Math.sqrt(h)) * 1.3;
-      if (km < 0.15) return null;
-      if (km < 1.5) return { mode: 'walk', label: '步行', min: Math.max(3, Math.round(km * 13)) };
-      if (km < 30) return { mode: 'bus', label: '大眾運輸', min: Math.round(km * 2.6 + 10) };
-      return { mode: 'car', label: '開車或高鐵', min: Math.round(km * 1.1 + 20) };
+      var cur = this.list[i];
+      if (!cur || cur.cat === '航班') return null;
+      if (cur.mins === undefined || cur.mins === '' || cur.mins === null) return null;
+      var mm = Number(cur.mins);
+      if (!mm || mm < 0) return null;
+      var L = { taxi: '打車', walk: '走路', train: '高鐵', metro: '地鐵', car: '打車', bus: '地鐵' };
+      var md = cur.mode || '';
+      return { mode: md, min: mm, text: (md ? L[md] + ' ' : '') + mm + ' 分' };
     },
 
     /* --- 圖示 --- */
     moveIcon: function (m) {
       if (m === 'walk') return svg('<circle cx="13" cy="4.5" r="1.6"/><path d="M11 21l1.5-5-2.5-2.5 1-4.5 3 2 2.5 1M9 21l2-5"/>', 16);
-      if (m === 'car') return svg('<path d="M5 16h14M6.5 16V12l1.8-4h7.4l1.8 4v4"/><circle cx="8" cy="17.5" r="1.5"/><circle cx="16" cy="17.5" r="1.5"/>', 16);
-      return svg('<rect x="6" y="4" width="12" height="12" rx="2.5"/><path d="M6 10h12M8.5 20l1.5-2M15.5 20L14 18"/><circle cx="9" cy="13.5" r=".8" fill="currentColor"/><circle cx="15" cy="13.5" r=".8" fill="currentColor"/>', 16);
+      if (m === 'taxi' || m === 'car') return svg('<path d="M5 16h14M6.5 16V12l1.8-4h7.4l1.8 4v4"/><circle cx="8" cy="17.5" r="1.5"/><circle cx="16" cy="17.5" r="1.5"/>', 16);
+      if (m === 'train') return svg('<path d="M6 15V9.5C6 6 8.7 4 12 4s6 2 6 5.5V15a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2z"/><path d="M6.5 11h11M4.5 21l3-3M19.5 21l-3-3"/>', 16);
+      if (m === 'metro' || m === 'bus') return svg('<rect x="6" y="4" width="12" height="12" rx="2.5"/><path d="M6 10h12M8.5 20l1.5-2M15.5 20L14 18"/><circle cx="9" cy="13.5" r=".8" fill="currentColor"/><circle cx="15" cy="13.5" r=".8" fill="currentColor"/>', 16);
+      return svg('<path d="M12 5v14M8 15l4 4 4-4"/>', 16);
     },
     catIcon: function (c) {
       var m = {
@@ -817,6 +857,46 @@ Vue.createApp({
       }).catch(function () {});
     },
 
+    /* --- 一次性補上：每天都要有當晚住宿 --- */
+    addStayEachDay: function () {
+      if (store.get('stayall', 0)) { return; }
+      if (ensureStay(this.items)) { this.persist(); }
+      store.set('stayall', 1);
+    },
+
+    /* --- 一次性搬移：把住宿卡片移到當天最後 --- */
+    moveStayLast: function () {
+      if (store.get('staylast', 0)) { return; }
+      var items = this.items, changed = false;
+      Object.keys(items).forEach(function (d) {
+        var a = items[d] || [];
+        var rest = a.filter(function (x) { return x.cat !== '住宿'; });
+        var stay = a.filter(function (x) { return x.cat === '住宿'; });
+        if (stay.length && rest.length && a[a.length - 1].cat !== '住宿') {
+          items[d] = rest.concat(stay); changed = true;
+        }
+      });
+      if (changed) { this.persist(); }
+      store.set('staylast', 1);
+    },
+
+    /* --- 一次性修正：舊資料裡的住宿金額幣別 --- */
+    fixCurrency: function () {
+      if (store.get('fixcny', 0)) { return; }
+      var map = { '¥8400': 'NT$8,400', '¥2300': 'NT$2,300', '¥2500': 'NT$2,500', '¥7158': 'NT$7,158' };
+      var items = this.items, changed = false;
+      Object.keys(items).forEach(function (d) {
+        (items[d] || []).forEach(function (it) {
+          if (it.cat !== '住宿' || !it.note) { return; }
+          Object.keys(map).forEach(function (k) {
+            if (it.note.indexOf(k) >= 0) { it.note = it.note.split(k).join(map[k]); changed = true; }
+          });
+        });
+      });
+      if (changed) { this.persist(); }
+      store.set('fixcny', 1);
+    },
+
     /* --- 重設與備份 --- */
     toast: function (t) {
       var self = this; this.msg = t;
@@ -859,7 +939,7 @@ Vue.createApp({
     },
 
     /* --- 行程 CRUD --- */
-    add: function () { this.form = { isNew: true, id: uid(), cat: '景點', name: '', hours: '', ticket: '', note: '', from: '', to: '', dep: '', arr: '', dur: '' }; },
+    add: function () { this.form = { isNew: true, id: uid(), cat: '景點', name: '', hours: '', ticket: '', note: '', mode: '', mins: '', from: '', to: '', dep: '', arr: '', dur: '' }; },
     edit: function (it) { this.form = Object.assign({ isNew: false }, it); },
     save: function () {
       var f = this.form; if (!f.name) { f.name = '未命名'; }
