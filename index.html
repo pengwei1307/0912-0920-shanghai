@@ -42,8 +42,11 @@
     font-family:"PingFang TC","Heiti TC","Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif;
     color:var(--ink);
     background:
-      radial-gradient(120% 60% at 50% 0%, #FEFBF6 0%, rgba(254,251,246,0) 60%),
-      linear-gradient(180deg,#FCF7EF 0%, #F5F1E6 40%, #EAF0EC 100%);
+      linear-gradient(180deg,
+        #F7F3E9 0px,      /* 頁首上緣的宣紙米白 */
+        #EFF1E6 260px,    /* 接住 banner 底部的青灰綠 #C6CBBC 的淡化版 */
+        #E9EEE4 55%,
+        #E3EAE0 100%);
     background-attachment:fixed;
     min-height:100vh;
   }
@@ -77,7 +80,7 @@
   }
   .ticket::before,.ticket::after{
     content:''; position:absolute; width:22px; height:22px; border-radius:50%;
-    background:var(--paper2); top:50%; transform:translateY(-50%);
+    background:#EFF2E9; top:50%; transform:translateY(-50%);
     box-shadow:inset 0 0 0 1px var(--line);
   }
   .ticket::before{ left:-11px; } .ticket::after{ right:-11px; }
@@ -114,29 +117,40 @@
 
   <!-- ============ 頁首 Banner ============ -->
   <header class="relative">
-    <div class="w-full overflow-hidden rounded-b-[2.2rem]" style="height:250px">
+    <div class="w-full overflow-hidden relative" style="height:250px">
       <img src="banner.png" alt="上海・蘇州・杭州" class="w-full h-full object-cover">
+      <!-- 底部淡化，讓圖片溶進頁面底色 -->
+      <div class="absolute inset-x-0 bottom-0 pointer-events-none" style="height:96px;
+           background:linear-gradient(180deg,
+             rgba(252,251,246,0) 0%,
+             rgba(252,251,246,.45) 45%,
+             rgba(252,251,246,.85) 78%,
+             #FCFBF6 100%)"></div>
     </div>
 
-    <!-- 分頁按鈕：浮在圖片右下 -->
-    <nav class="absolute right-4 bottom-6 z-20 flex gap-1 p-1 rounded-2xl tabbar">
-      <button v-for="t in tabs" :key="t.k" @click="tab=t.k"
-              class="w-11 h-11 rounded-xl flex items-center justify-center transition"
-              :class="tab===t.k ? 'tab-on text-[#5B7A64]' : 'text-ink2/70'"
-              :aria-label="t.label">
-        <span v-html="t.icon"></span>
-      </button>
-    </nav>
   </header>
 
   <!-- ============ 主內容（負邊距上拉，與圓弧銜接） ============ -->
-  <main class="relative z-10 -mt-8 rounded-t-[2rem] min-h-[70vh] pb-32"
-        style="background:linear-gradient(180deg,rgba(255,255,255,.92),rgba(255,255,255,.62))">
+  <main class="relative z-10 min-h-[70vh] pb-32"
+        style="background:linear-gradient(180deg,rgba(253,252,247,.95) 0%,rgba(244,247,239,.78) 45%,rgba(238,243,235,.62) 100%)">
+
+    <!-- 分頁按鈕：貼在內容區頂端，捲動時跟著走，不蓋到 banner -->
+    <div class="sticky top-2 z-40 flex justify-end px-4 pt-3 pb-1 pointer-events-none">
+      <nav class="flex gap-1 p-1 rounded-2xl tabbar pointer-events-auto">
+        <button v-for="t in tabs" :key="t.k" @click="tab=t.k"
+                class="w-11 h-11 rounded-xl flex items-center justify-center transition"
+                :class="tab===t.k ? 'tab-on text-[#5B7A64]' : 'text-ink2/70'"
+                :aria-label="t.label">
+          <span v-html="t.icon"></span>
+        </button>
+      </nav>
+    </div>
+
 
     <!-- ---------- 1. 每日行程 ---------- -->
     <section v-if="tab==='plan'">
       <!-- 日期橫向捲軸 -->
-      <div class="pt-5 pb-3 overflow-x-auto no-bar">
+      <div class="pt-1 pb-3 overflow-x-auto no-bar">
         <div class="flex gap-2.5 px-4">
           <button v-for="d in days" :key="d.date" @click="pick(d.date)"
                   class="shrink-0 w-[62px] py-2.5 rounded-2xl transition border"
@@ -177,26 +191,42 @@
             </div>
 
             <!-- 機票卡 -->
-            <div v-if="it.cat==='航班'" class="ticket p-4 mb-1" @click="edit(it)">
-              <div class="flex items-center justify-between">
-                <div class="text-center">
-                  <div class="serif text-[26px] leading-none">{{ it.from }}</div>
-                  <div class="text-[12px] text-ink2 mt-1">{{ it.dep }}</div>
-                </div>
-                <div class="flex-1 px-3">
-                  <div class="text-[11.5px] text-ink2 text-center mb-1">{{ it.name }}</div>
-                  <div class="relative h-3">
-                    <div class="absolute inset-x-0 top-1.5 border-t border-dashed border-[rgba(61,74,71,.3)]"></div>
-                    <svg class="absolute left-1/2 -translate-x-1/2 -top-0.5 w-5 h-5 text-[#7D9E88]" viewBox="0 0 24 24" fill="currentColor"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z"/></svg>
+            <div v-if="it.cat==='航班'" class="ticket p-3.5 mb-1 flex gap-3 trip-card"
+                 :class="dragI===i ? 'card-drag' : ''"
+                 :style="dragI===i ? {transform:'translateY('+dragY+'px) scale(1.02)', zIndex:50, position:'relative'} : {}">
+
+              <div class="flex-1 min-w-0" @click="edit(it)">
+                <div class="flex items-center justify-between">
+                  <div class="text-center">
+                    <div class="serif text-[26px] leading-none">{{ it.from }}</div>
+                    <div class="text-[12px] text-ink2 mt-1">{{ it.dep }}</div>
                   </div>
-                  <div class="text-[11.5px] text-ink2 text-center mt-1">{{ it.dur }}</div>
+                  <div class="flex-1 px-3">
+                    <div class="text-[11.5px] text-ink2 text-center mb-1">{{ it.name }}</div>
+                    <div class="relative h-3">
+                      <div class="absolute inset-x-0 top-1.5 border-t border-dashed border-[rgba(61,74,71,.3)]"></div>
+                      <svg class="absolute left-1/2 -translate-x-1/2 -top-0.5 w-5 h-5 text-[#7D9E88]" viewBox="0 0 24 24" fill="currentColor"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z"/></svg>
+                    </div>
+                    <div class="text-[11.5px] text-ink2 text-center mt-1">{{ it.dur }}</div>
+                  </div>
+                  <div class="text-center">
+                    <div class="serif text-[26px] leading-none">{{ it.to }}</div>
+                    <div class="text-[12px] text-ink2 mt-1">{{ it.arr }}</div>
+                  </div>
                 </div>
-                <div class="text-center">
-                  <div class="serif text-[26px] leading-none">{{ it.to }}</div>
-                  <div class="text-[12px] text-ink2 mt-1">{{ it.arr }}</div>
+                <div class="dashed mt-3 pt-2 text-[12.5px] text-ink2" v-if="it.note">{{ it.note }}</div>
+              </div>
+
+              <div class="flex flex-col items-center gap-2 shrink-0">
+                <button @click.stop="edit(it)" class="text-ink2/60 p-1" aria-label="編輯">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20h4L20 8l-4-4L4 16v4z"/></svg>
+                </button>
+                <div class="drag-handle text-ink2/45 p-1"
+                     @pointerdown="dragStart($event,i)" @pointermove="dragMove($event)"
+                     @pointerup="dragEnd" @pointercancel="dragEnd" aria-label="拖曳排序">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 8h16M4 12h16M4 16h16"/></svg>
                 </div>
               </div>
-              <div class="dashed mt-3 pt-2 text-[12.5px] text-ink2" v-if="it.note">{{ it.note }}</div>
             </div>
 
             <!-- 一般行程卡 -->
@@ -241,7 +271,7 @@
     </section>
 
     <!-- ---------- 2. 資訊 ---------- -->
-    <section v-if="tab==='info'" class="px-4 pt-6 space-y-5">
+    <section v-if="tab==='info'" class="px-4 pt-2 space-y-5">
 
       <!-- 匯率 -->
       <div class="card p-4">
@@ -326,10 +356,27 @@
         </div>
         <p class="text-[12px] text-ink2 mt-3">出發前請再確認一次駐外單位號碼，號碼可能異動。</p>
       </div>
+
+      <!-- 資料管理 -->
+      <div class="card p-4">
+        <h2 class="serif text-[19px] mb-2">資料管理</h2>
+        <p class="text-[13px] text-ink2 mb-3.5 leading-relaxed">
+          行程、購物清單和花費都存在這支手機的瀏覽器裡。換手機、清除瀏覽器資料之前，先匯出一份備份。
+        </p>
+        <div class="space-y-2.5">
+          <button @click="exportBackup()" class="w-full py-3 rounded-2xl bg-[#7D9E88] text-white text-[14.5px]">匯出備份檔</button>
+          <label class="block w-full py-3 rounded-2xl bg-white border border-[rgba(61,74,71,.12)] text-center text-[14.5px]">
+            從備份檔還原
+            <input type="file" accept=".json,application/json" class="hidden" @change="importBackup($event)">
+          </label>
+          <button @click="confirmReset=true" class="w-full py-3 rounded-2xl bg-[#F7ECEA] text-[#C0736F] text-[14.5px]">重設行程</button>
+        </div>
+        <p v-if="msg" class="text-[13px] text-[#5B7A64] mt-3.5 text-center leading-relaxed">{{ msg }}</p>
+      </div>
     </section>
 
     <!-- ---------- 3. 購物清單 ---------- -->
-    <section v-if="tab==='shop'" class="px-4 pt-6">
+    <section v-if="tab==='shop'" class="px-4 pt-2">
       <h2 class="serif text-[20px] mb-4">購物清單</h2>
       <div class="grid grid-cols-2 gap-3">
         <div v-for="s in shop" :key="s.id" class="card overflow-hidden">
@@ -353,7 +400,7 @@
     </section>
 
     <!-- ---------- 4. 花費 ---------- -->
-    <section v-if="tab==='cost'" class="px-4 pt-6">
+    <section v-if="tab==='cost'" class="px-4 pt-2">
       <div class="card p-5 mb-5 text-center">
         <div class="text-[13px] text-ink2">總花費</div>
         <div class="serif text-[34px] mt-1">¥ {{ total.toLocaleString() }}</div>
@@ -374,6 +421,18 @@
       <button class="fab fixed right-5 bottom-6 w-14 h-14 rounded-full text-white text-3xl leading-none z-30" @click="addCost()">＋</button>
     </section>
   </main>
+
+  <!-- ============ 重設確認 ============ -->
+  <div v-if="confirmReset" class="fixed inset-0 z-[60] flex items-center justify-center p-8" style="background:rgba(45,55,52,.4)">
+    <div class="bg-white rounded-2xl p-5 w-full max-w-xs text-center">
+      <p class="text-[15px] mb-1.5">重設行程？</p>
+      <p class="text-[13px] text-ink2 mb-4 leading-relaxed">九天的行程會回到最初的版本，你自己加的地點和調整過的順序都會不見。購物清單和花費會保留。</p>
+      <div class="flex gap-3">
+        <button @click="confirmReset=false" class="flex-1 py-2.5 rounded-xl bg-[#F3F1EA]">取消</button>
+        <button @click="doReset()" class="flex-1 py-2.5 rounded-xl bg-[#C0736F] text-white">重設</button>
+      </div>
+    </div>
+  </div>
 
   <!-- ============ 行程 彈出視窗 ============ -->
   <div v-if="form" class="fixed inset-0 z-50 flex items-end" style="background:rgba(45,55,52,.35)" @click.self="form=null">
@@ -512,8 +571,8 @@ var P = function (n, cat, lat, lng, o) {
 var SEED = {
   '2026-09-12': [
     { id: uid(), cat: '航班', name: 'CX449 國泰航空', from: 'KHH', to: 'PVG', dep: '07:30', arr: '13:15', dur: '含香港轉機 1h20m', note: '高雄出發，香港轉機後抵達浦東' },
-    P('國家會展中心 虹館', '其他', 31.192, 121.301, { hours: '19:00 開始', note: '落地後直接過去，先寄行李' }),
-    P('亞朵S 天山路', '住宿', 31.210, 121.396, { note: '12–15 三晚，¥8400' })
+    P('亞朵S 天山路', '住宿', 31.210, 121.396, { note: '12–15 三晚，¥8400；先放行李再出門' }),
+    P('國家會展中心 虹館', '其他', 31.192, 121.301, { hours: '19:00 開始' })
   ],
   '2026-09-13': [
     P('定興路蛋餅攤', '美食', 31.213, 121.418, { hours: '早上', note: '早餐，賣完就收' }),
@@ -569,6 +628,10 @@ var SEED = {
 
 var DOW = [['Sun', '日'], ['Mon', '一'], ['Tue', '二'], ['Wed', '三'], ['Thu', '四'], ['Fri', '五'], ['Sat', '六']];
 
+/* 原封不動的原始行程，重設時用它還原 */
+var SEED_RAW = JSON.stringify(SEED);
+var toastTimer = null;
+
 var svg = function (p, w) {
   return '<svg width="' + (w || 20) + '" height="' + (w || 20) + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>';
 };
@@ -583,7 +646,7 @@ Vue.createApp({
       tab: 'plan',
       days: days,
       active: store.get('active', days[0].date),
-      items: store.get('items', SEED),
+      items: store.get('items', JSON.parse(SEED_RAW)),
       shop: store.get('shop', []),
       costs: store.get('costs', []),
       weather: {},
@@ -591,6 +654,7 @@ Vue.createApp({
       rateNote: '離線暫用參考值',
       cny: '', twd: '',
       form: null, cform: null, sform: null, askDel: false,
+      confirmReset: false, msg: '',
       dragI: null, dragY: 0, dragStartY: 0,
       cats: ['景點', '住宿', '美食', '購物', '航班', '其他'],
       costCats: ['交通', '飲食', '住宿', '門票', '購物', '其他'],
@@ -743,6 +807,47 @@ Vue.createApp({
           self.rateNote = (j.time_last_update_utc || '').slice(5, 16) + ' 更新';
         }
       }).catch(function () {});
+    },
+
+    /* --- 重設與備份 --- */
+    toast: function (t) {
+      var self = this; this.msg = t;
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(function () { self.msg = ''; }, 4000);
+    },
+    doReset: function () {
+      this.items = JSON.parse(SEED_RAW);
+      this.persist();
+      this.confirmReset = false;
+      this.toast('行程已經回到最初的版本');
+    },
+    exportBackup: function () {
+      var data = { app: 'jiangnan', v: 1, at: new Date().toISOString(), items: this.items, shop: this.shop, costs: this.costs };
+      var d = new Date();
+      var name = 'jiangnan-' + d.getFullYear() + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0') + '.json';
+      var url = URL.createObjectURL(new Blob([JSON.stringify(data)], { type: 'application/json' }));
+      var a = document.createElement('a');
+      a.href = url; a.download = name;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(function () { URL.revokeObjectURL(url); }, 3000);
+      this.toast('備份檔已存出，檔名 ' + name);
+    },
+    importBackup: function (e) {
+      var f = e.target.files[0]; e.target.value = '';
+      if (!f) return;
+      var self = this, r = new FileReader();
+      r.onload = function (ev) {
+        try {
+          var d = JSON.parse(ev.target.result);
+          if (!d || !d.items) { self.toast('這不像是這個 App 的備份檔'); return; }
+          self.items = d.items;
+          self.shop = d.shop || [];
+          self.costs = d.costs || [];
+          store.set('items', self.items); store.set('shop', self.shop); store.set('costs', self.costs);
+          self.toast('已經從備份還原');
+        } catch (err) { self.toast('檔案讀不出來，請確認選的是備份檔'); }
+      };
+      r.readAsText(f);
     },
 
     /* --- 行程 CRUD --- */
