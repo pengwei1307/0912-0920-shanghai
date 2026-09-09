@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#FCF7EF">
+<title>煙雨江南 · 上海蘇杭</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  if (window.tailwind) {
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            paper:  '#FCF7EF',
+            paper2: '#F3EFE3',
+            ink:    '#3D4A47',
+            ink2:   '#6E7C77',
+            jade:   '#8FAE93',
+            mist:   '#A8C4CE',
+            water:  '#CFE0E4',
+            lotus:  '#E3A8B4',
+            clay:   '#C9A98C'
+          }
+        }
+      }
+    }
+  }
+</script>
+
+<style>
+  :root{
+    --paper:#FCF7EF; --paper2:#F3EFE3; --ink:#3D4A47; --ink2:#6E7C77;
+    --jade:#8FAE93; --mist:#A8C4CE; --water:#CFE0E4; --lotus:#E3A8B4; --line:rgba(61,74,71,.10);
+  }
+  *{ -webkit-tap-highlight-color:transparent; }
+  html,body{ margin:0; padding:0; }
+  body{
+    font-family:"PingFang TC","Heiti TC","Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif;
+    color:var(--ink);
+    background:
+      radial-gradient(120% 60% at 50% 0%, #FEFBF6 0%, rgba(254,251,246,0) 60%),
+      linear-gradient(180deg,#FCF7EF 0%, #F5F1E6 40%, #EAF0EC 100%);
+    background-attachment:fixed;
+    min-height:100vh;
+  }
+  .serif{ font-family:"Songti TC","Noto Serif TC","Source Han Serif TC","PMingLiU",serif; }
+
+  /* 隱藏水平捲軸（日期列） */
+  .no-bar::-webkit-scrollbar{ display:none; }
+  .no-bar{ scrollbar-width:none; -ms-overflow-style:none; }
+
+  /* 宣紙紋理卡片 */
+  .card{
+    background:rgba(255,255,255,.82);
+    backdrop-filter:blur(6px);
+    border:1px solid var(--line);
+    border-radius:20px;
+    box-shadow:0 6px 20px -12px rgba(61,74,71,.35);
+  }
+  .card-drag{
+    box-shadow:0 18px 40px -14px rgba(61,74,71,.45);
+    transform:scale(1.02);
+    opacity:.96;
+  }
+  /* 機票卡：兩側鑿孔 */
+  .ticket{
+    position:relative;
+    background:linear-gradient(135deg,#FFFFFF 0%,#F4F8F6 100%);
+    border:1px solid var(--line);
+    border-radius:20px;
+    box-shadow:0 6px 20px -12px rgba(61,74,71,.35);
+    overflow:hidden;
+  }
+  .ticket::before,.ticket::after{
+    content:''; position:absolute; width:22px; height:22px; border-radius:50%;
+    background:var(--paper2); top:50%; transform:translateY(-50%);
+    box-shadow:inset 0 0 0 1px var(--line);
+  }
+  .ticket::before{ left:-11px; } .ticket::after{ right:-11px; }
+  .dashed{ border-top:1px dashed rgba(61,74,71,.25); }
+
+  /* 交通時間連接線 */
+  .link-line{ width:1px; height:14px; background:linear-gradient(180deg,rgba(61,74,71,.05),rgba(61,74,71,.28)); margin:0 auto; }
+  .link-line.rev{ background:linear-gradient(180deg,rgba(61,74,71,.28),rgba(61,74,71,.05)); }
+
+  .fab{
+    box-shadow:0 10px 26px -8px rgba(61,74,71,.55);
+    background:linear-gradient(145deg,#9DBBA4,#7D9E88);
+  }
+  .tabbar{ background:rgba(255,255,255,.55); backdrop-filter:blur(10px) saturate(1.2); border:1px solid rgba(255,255,255,.75); }
+  .tab-on{ background:rgba(255,255,255,.95); box-shadow:0 4px 12px -4px rgba(61,74,71,.4); }
+
+  .sheet-enter{ animation:up .28s cubic-bezier(.2,.8,.3,1); }
+  @keyframes up{ from{ transform:translateY(24px); opacity:0 } to{ transform:translateY(0); opacity:1 } }
+  @media (prefers-reduced-motion:reduce){ .sheet-enter{ animation:none } }
+
+  input,select,textarea{
+    background:#FFFFFF; border:1px solid var(--line); border-radius:12px;
+    padding:10px 12px; width:100%; font-size:15px; color:var(--ink); outline:none;
+  }
+  input:focus,select,textarea:focus{ border-color:var(--jade); box-shadow:0 0 0 3px rgba(143,174,147,.18); }
+  label.fld{ font-size:12.5px; color:var(--ink2); margin-bottom:5px; display:block; }
+  .drag-handle{ touch-action:none; cursor:grab; }
+  [v-cloak]{ display:none; }
+</style>
+</head>
+
+<body>
+<div id="app" v-cloak>
+
+  <!-- ============ 頁首 Banner ============ -->
+  <header class="relative">
+    <div class="w-full overflow-hidden rounded-b-[2.2rem]" style="height:250px">
+      <img src="banner.png" alt="上海・蘇州・杭州" class="w-full h-full object-cover">
+    </div>
+
+    <!-- 分頁按鈕：浮在圖片右下 -->
+    <nav class="absolute right-4 bottom-6 z-20 flex gap-1 p-1 rounded-2xl tabbar">
+      <button v-for="t in tabs" :key="t.k" @click="tab=t.k"
+              class="w-11 h-11 rounded-xl flex items-center justify-center transition"
+              :class="tab===t.k ? 'tab-on text-[#5B7A64]' : 'text-ink2/70'"
+              :aria-label="t.label">
+        <span v-html="t.icon"></span>
+      </button>
+    </nav>
+  </header>
+
+  <!-- ============ 主內容（負邊距上拉，與圓弧銜接） ============ -->
+  <main class="relative z-10 -mt-8 rounded-t-[2rem] min-h-[70vh] pb-32"
+        style="background:linear-gradient(180deg,rgba(255,255,255,.92),rgba(255,255,255,.62))">
+
+    <!-- ---------- 1. 每日行程 ---------- -->
+    <section v-if="tab==='plan'">
+      <!-- 日期橫向捲軸 -->
+      <div class="pt-5 pb-3 overflow-x-auto no-bar">
+        <div class="flex gap-2.5 px-4">
+          <button v-for="d in days" :key="d.date" @click="pick(d.date)"
+                  class="shrink-0 w-[62px] py-2.5 rounded-2xl transition border"
+                  :class="active===d.date
+                    ? 'bg-[#7D9E88] text-white border-transparent shadow-md'
+                    : 'bg-white/70 border-[rgba(61,74,71,.10)] text-ink'">
+            <div class="serif text-[19px] leading-tight">{{ d.dow }}</div>
+            <div class="text-[13px] opacity-80 mt-0.5">{{ d.dd }}</div>
+          </button>
+        </div>
+      </div>
+
+      <div class="px-4">
+        <!-- 天氣 -->
+        <div class="card px-4 py-3 flex items-center gap-3 mb-4">
+          <div class="w-11 h-11 shrink-0" v-html="wxIcon(weather[active] && weather[active].code)"></div>
+          <div class="flex-1">
+            <div class="serif text-[17px]">{{ cityOf(active) }}　{{ weather[active] ? weather[active].text : '取得天氣中…' }}</div>
+            <div class="text-[13px] text-ink2 mt-0.5" v-if="weather[active]">
+              {{ weather[active].min }}° ~ {{ weather[active].max }}°　體感 {{ weather[active].feels }}°
+            </div>
+            <div class="text-[13px] text-ink2 mt-0.5" v-else>連上網路後會自動更新</div>
+          </div>
+        </div>
+
+        <!-- 行程列表 -->
+        <div ref="list">
+          <div v-for="(it,i) in list" :key="it.id">
+
+            <!-- 交通時間 -->
+            <div class="flex flex-col items-center py-0.5" v-if="leg(i)">
+              <div class="link-line"></div>
+              <div class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/70 border border-[rgba(61,74,71,.10)] text-[12.5px] text-ink2">
+                <span class="w-4 h-4 inline-block" v-html="moveIcon(leg(i).mode)"></span>
+                <span>{{ leg(i).label }} 約 {{ leg(i).min }} 分</span>
+              </div>
+              <div class="link-line rev"></div>
+            </div>
+
+            <!-- 機票卡 -->
+            <div v-if="it.cat==='航班'" class="ticket p-4 mb-1" @click="edit(it)">
+              <div class="flex items-center justify-between">
+                <div class="text-center">
+                  <div class="serif text-[26px] leading-none">{{ it.from }}</div>
+                  <div class="text-[12px] text-ink2 mt-1">{{ it.dep }}</div>
+                </div>
+                <div class="flex-1 px-3">
+                  <div class="text-[11.5px] text-ink2 text-center mb-1">{{ it.name }}</div>
+                  <div class="relative h-3">
+                    <div class="absolute inset-x-0 top-1.5 border-t border-dashed border-[rgba(61,74,71,.3)]"></div>
+                    <svg class="absolute left-1/2 -translate-x-1/2 -top-0.5 w-5 h-5 text-[#7D9E88]" viewBox="0 0 24 24" fill="currentColor"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z"/></svg>
+                  </div>
+                  <div class="text-[11.5px] text-ink2 text-center mt-1">{{ it.dur }}</div>
+                </div>
+                <div class="text-center">
+                  <div class="serif text-[26px] leading-none">{{ it.to }}</div>
+                  <div class="text-[12px] text-ink2 mt-1">{{ it.arr }}</div>
+                </div>
+              </div>
+              <div class="dashed mt-3 pt-2 text-[12.5px] text-ink2" v-if="it.note">{{ it.note }}</div>
+            </div>
+
+            <!-- 一般行程卡 -->
+            <div v-else class="card p-3.5 mb-1 flex gap-3 trip-card"
+                 :class="dragI===i ? 'card-drag' : ''"
+                 :style="dragI===i ? {transform:'translateY('+dragY+'px) scale(1.02)', zIndex:50, position:'relative'} : {}">
+              <div class="w-9 h-9 shrink-0 rounded-xl flex items-center justify-center"
+                   :style="{background:catBg(it.cat)}" v-html="catIcon(it.cat)"></div>
+
+              <div class="flex-1 min-w-0" @click="openMap(it)">
+                <div class="flex items-center gap-2">
+                  <span class="serif text-[17px] truncate">{{ it.name }}</span>
+                  <span class="text-[11px] px-1.5 py-0.5 rounded-md shrink-0"
+                        :style="{background:catBg(it.cat),color:'#4A5C52'}">{{ it.cat }}</span>
+                </div>
+                <div class="text-[13px] text-ink2 mt-1" v-if="it.hours">🕘 {{ it.hours }}</div>
+                <div class="text-[13px] text-ink2" v-if="it.ticket">🎟 {{ it.ticket }}</div>
+                <div class="text-[13px] text-ink2 mt-1 whitespace-pre-line" v-if="it.note">{{ it.note }}</div>
+                <div class="text-[12px] text-[#7D9E88] mt-1.5">點一下開啟高德地圖</div>
+              </div>
+
+              <div class="flex flex-col items-center gap-2 shrink-0">
+                <button @click.stop="edit(it)" class="text-ink2/60 p-1" aria-label="編輯">
+                  <svg class="w-4.5 h-4.5" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20h4L20 8l-4-4L4 16v4z"/></svg>
+                </button>
+                <div class="drag-handle text-ink2/45 p-1"
+                     @pointerdown="dragStart($event,i)" @pointermove="dragMove($event)"
+                     @pointerup="dragEnd" @pointercancel="dragEnd" aria-label="拖曳排序">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 8h16M4 12h16M4 16h16"/></svg>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <p v-if="!list.length" class="text-center text-ink2 text-[14px] py-12">
+            這天還沒有安排。按右下角的加號新增第一個地點。
+          </p>
+        </div>
+      </div>
+
+      <button class="fab fixed right-5 bottom-6 w-14 h-14 rounded-full text-white text-3xl leading-none z-30" @click="add()">＋</button>
+    </section>
+
+    <!-- ---------- 2. 資訊 ---------- -->
+    <section v-if="tab==='info'" class="px-4 pt-6 space-y-5">
+
+      <!-- 匯率 -->
+      <div class="card p-4">
+        <h2 class="serif text-[19px] mb-1">匯率換算</h2>
+        <p class="text-[12.5px] text-ink2 mb-3">
+          1 人民幣 ≈ {{ rate.toFixed(3) }} 台幣<span v-if="rateNote">（{{ rateNote }}）</span>
+        </p>
+        <div class="flex items-end gap-2">
+          <div class="flex-1">
+            <label class="fld">人民幣 CNY</label>
+            <input type="number" inputmode="decimal" v-model="cny" @input="twd=fx(cny,rate)">
+          </div>
+          <div class="pb-3 text-ink2">→</div>
+          <div class="flex-1">
+            <label class="fld">台幣 TWD</label>
+            <input type="number" inputmode="decimal" v-model="twd" @input="cny=fx(twd,1/rate)">
+          </div>
+        </div>
+      </div>
+
+      <!-- 航班 -->
+      <div class="card p-4">
+        <h2 class="serif text-[19px] mb-3">航班</h2>
+        <div v-for="f in flights" :key="f.id" class="mb-4 last:mb-0">
+          <div class="text-[12.5px] text-ink2 mb-1.5">{{ f.leg }}　{{ f.date }}　{{ f.name }}</div>
+          <div class="flex items-center justify-between bg-white/70 rounded-2xl px-4 py-3 border border-[rgba(61,74,71,.08)]">
+            <div class="text-center">
+              <div class="serif text-[24px] leading-none">{{ f.from }}</div>
+              <div class="text-[12px] text-ink2 mt-1">{{ f.dep }}</div>
+            </div>
+            <div class="flex-1 px-3 text-center">
+              <div class="border-t border-dashed border-[rgba(61,74,71,.3)] mt-2"></div>
+              <div class="text-[11.5px] text-ink2 mt-1">{{ f.dur }}</div>
+            </div>
+            <div class="text-center">
+              <div class="serif text-[24px] leading-none">{{ f.to }}</div>
+              <div class="text-[12px] text-ink2 mt-1">{{ f.arr }}</div>
+            </div>
+          </div>
+          <div class="text-[12.5px] text-ink2 mt-1.5">{{ f.note }}</div>
+        </div>
+      </div>
+
+      <!-- 住宿 -->
+      <div class="card p-4">
+        <h2 class="serif text-[19px] mb-3">住宿</h2>
+        <div v-for="h in hotels" :key="h.name" class="py-3 border-b border-[rgba(61,74,71,.08)] last:border-0 last:pb-0">
+          <div class="flex justify-between items-baseline">
+            <span class="serif text-[16px]">{{ h.name }}</span>
+            <span class="text-[12px] text-ink2">{{ h.nights }}</span>
+          </div>
+          <div class="text-[13px] text-ink2 mt-1">{{ h.addr }}</div>
+          <div class="text-[13px] text-ink2">房價 ¥{{ h.price }}　·　約 NT${{ Math.round(h.price*rate).toLocaleString() }}</div>
+          <div class="flex gap-2 mt-2.5">
+            <a :href="'tel:'+h.tel" class="px-3 py-1.5 rounded-full bg-white border border-[rgba(61,74,71,.12)] text-[13px]">撥電話</a>
+            <a :href="amap(h.name,h.city)" target="_blank" class="px-3 py-1.5 rounded-full bg-[#7D9E88] text-white text-[13px]">高德導航</a>
+            <a :href="gmap(h.name)" target="_blank" class="px-3 py-1.5 rounded-full bg-white border border-[rgba(61,74,71,.12)] text-[13px]">Google 地圖</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- 租車 / 交通 -->
+      <div class="card p-4">
+        <h2 class="serif text-[19px] mb-2">租車與交通</h2>
+        <ul class="text-[13.5px] text-ink2 space-y-1.5 leading-relaxed">
+          <li>台灣駕照在中國大陸不能直接租車自駕，需先換發中國臨時駕照，建議改用叫車。</li>
+          <li>叫車用「滴滴出行」，可用支付寶或微信裡的滴滴小程式叫車，不用另外裝 App。</li>
+          <li>烏鎮往返可在飯店或遊客中心洽詢包車，一車約 ¥600–900。</li>
+          <li>市內交通刷支付寶「乘車碼」最方便，地鐵、公車都能用。</li>
+        </ul>
+      </div>
+
+      <!-- 緊急 -->
+      <div class="card p-4">
+        <h2 class="serif text-[19px] mb-3">緊急聯絡</h2>
+        <div class="grid grid-cols-2 gap-2.5">
+          <a v-for="e in emerg" :key="e.num" :href="'tel:'+e.num"
+             class="rounded-2xl px-3 py-3 bg-white/80 border border-[rgba(61,74,71,.10)]">
+            <div class="serif text-[20px]">{{ e.num }}</div>
+            <div class="text-[12.5px] text-ink2 mt-0.5">{{ e.label }}</div>
+          </a>
+        </div>
+        <p class="text-[12px] text-ink2 mt-3">出發前請再確認一次駐外單位號碼，號碼可能異動。</p>
+      </div>
+    </section>
+
+    <!-- ---------- 3. 購物清單 ---------- -->
+    <section v-if="tab==='shop'" class="px-4 pt-6">
+      <h2 class="serif text-[20px] mb-4">購物清單</h2>
+      <div class="grid grid-cols-2 gap-3">
+        <div v-for="s in shop" :key="s.id" class="card overflow-hidden">
+          <div class="aspect-square bg-[#F1EEE4] flex items-center justify-center">
+            <img v-if="s.img" :src="s.img" class="w-full h-full object-cover">
+            <span v-else class="text-ink2/40 text-[13px]">沒有照片</span>
+          </div>
+          <div class="p-3 flex items-start justify-between gap-2">
+            <div class="min-w-0">
+              <div class="text-[14.5px] truncate">{{ s.name }}</div>
+              <label class="text-[12px] text-[#7D9E88] mt-1 inline-block">
+                換照片<input type="file" accept="image/*" class="hidden" @change="pic($event,s)">
+              </label>
+            </div>
+            <button @click="delShop(s)" class="text-ink2/50 text-[12px] shrink-0">刪除</button>
+          </div>
+        </div>
+      </div>
+      <p v-if="!shop.length" class="text-center text-ink2 text-[14px] py-12">還沒有想買的東西。按加號記下第一項。</p>
+      <button class="fab fixed right-5 bottom-6 w-14 h-14 rounded-full text-white text-3xl leading-none z-30" @click="addShop()">＋</button>
+    </section>
+
+    <!-- ---------- 4. 花費 ---------- -->
+    <section v-if="tab==='cost'" class="px-4 pt-6">
+      <div class="card p-5 mb-5 text-center">
+        <div class="text-[13px] text-ink2">總花費</div>
+        <div class="serif text-[34px] mt-1">¥ {{ total.toLocaleString() }}</div>
+        <div class="text-[13px] text-ink2 mt-1">約 NT$ {{ Math.round(total*rate).toLocaleString() }}</div>
+      </div>
+
+      <div v-for="c in costs" :key="c.id" class="card p-3.5 mb-2.5 flex items-center gap-3" @click="editCost(c)">
+        <div class="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+             :style="{background:catBg(c.cat)}" v-html="catIcon(c.cat)"></div>
+        <div class="flex-1 min-w-0">
+          <div class="text-[15px] truncate">{{ c.name }}</div>
+          <div class="text-[12.5px] text-ink2 mt-0.5">{{ c.date }}　{{ c.cat }}　{{ c.pay }}<span v-if="c.note">　{{ c.note }}</span></div>
+        </div>
+        <div class="serif text-[17px] shrink-0">¥{{ Number(c.amt).toLocaleString() }}</div>
+      </div>
+      <p v-if="!costs.length" class="text-center text-ink2 text-[14px] py-12">還沒有記錄。花錢之後按加號記一筆。</p>
+
+      <button class="fab fixed right-5 bottom-6 w-14 h-14 rounded-full text-white text-3xl leading-none z-30" @click="addCost()">＋</button>
+    </section>
+  </main>
+
+  <!-- ============ 行程 彈出視窗 ============ -->
+  <div v-if="form" class="fixed inset-0 z-50 flex items-end" style="background:rgba(45,55,52,.35)" @click.self="form=null">
+    <div class="w-full bg-[#FCF9F3] rounded-t-[1.75rem] p-5 pb-8 max-h-[88vh] overflow-y-auto sheet-enter">
+      <div class="w-10 h-1 rounded-full bg-ink2/25 mx-auto mb-4"></div>
+      <h3 class="serif text-[20px] mb-4">{{ form.isNew ? '新增行程' : '編輯行程' }}</h3>
+
+      <div class="space-y-3">
+        <div><label class="fld">分類</label>
+          <select v-model="form.cat"><option v-for="c in cats" :key="c">{{ c }}</option></select></div>
+        <div><label class="fld">名稱</label><input v-model="form.name" placeholder="例如 豫園"></div>
+
+        <template v-if="form.cat==='航班'">
+          <div class="grid grid-cols-2 gap-3">
+            <div><label class="fld">出發機場</label><input v-model="form.from" placeholder="KHH"></div>
+            <div><label class="fld">抵達機場</label><input v-model="form.to" placeholder="PVG"></div>
+            <div><label class="fld">起飛時間</label><input v-model="form.dep" placeholder="07:30"></div>
+            <div><label class="fld">抵達時間</label><input v-model="form.arr" placeholder="13:15"></div>
+          </div>
+          <div><label class="fld">飛行時間</label><input v-model="form.dur" placeholder="7h45m"></div>
+        </template>
+
+        <template v-else>
+          <div><label class="fld">營業時間</label><input v-model="form.hours" placeholder="09:00–17:00"></div>
+          <div v-if="form.cat==='景點'"><label class="fld">門票</label><input v-model="form.ticket" placeholder="¥40"></div>
+        </template>
+
+        <div><label class="fld">特色 & 備註</label><textarea v-model="form.note" rows="3"></textarea></div>
+      </div>
+
+      <div class="flex gap-3 mt-6">
+        <button @click="form=null" class="flex-1 py-3 rounded-2xl bg-white border border-[rgba(61,74,71,.12)]">取消</button>
+        <button @click="save()" class="flex-1 py-3 rounded-2xl bg-[#7D9E88] text-white">儲存</button>
+      </div>
+      <button v-if="!form.isNew" @click="askDel=true" class="w-full mt-3 py-3 rounded-2xl text-[#C0736F] bg-[#F7ECEA]">刪除這個行程</button>
+
+      <div v-if="askDel" class="fixed inset-0 z-[60] flex items-center justify-center p-8" style="background:rgba(45,55,52,.4)">
+        <div class="bg-white rounded-2xl p-5 w-full max-w-xs text-center">
+          <p class="text-[15px] mb-1">刪除「{{ form.name }}」？</p>
+          <p class="text-[13px] text-ink2 mb-4">刪掉之後沒辦法復原。</p>
+          <div class="flex gap-3">
+            <button @click="askDel=false" class="flex-1 py-2.5 rounded-xl bg-[#F3F1EA]">留著</button>
+            <button @click="del()" class="flex-1 py-2.5 rounded-xl bg-[#C0736F] text-white">刪除</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 花費 彈出視窗 ============ -->
+  <div v-if="cform" class="fixed inset-0 z-50 flex items-end" style="background:rgba(45,55,52,.35)" @click.self="cform=null">
+    <div class="w-full bg-[#FCF9F3] rounded-t-[1.75rem] p-5 pb-8 max-h-[88vh] overflow-y-auto sheet-enter">
+      <div class="w-10 h-1 rounded-full bg-ink2/25 mx-auto mb-4"></div>
+      <h3 class="serif text-[20px] mb-4">{{ cform.isNew ? '新增花費' : '編輯花費' }}</h3>
+      <div class="space-y-3">
+        <div><label class="fld">類別</label>
+          <select v-model="cform.cat"><option v-for="c in costCats" :key="c">{{ c }}</option></select></div>
+        <div><label class="fld">名稱</label><input v-model="cform.name" placeholder="例如 巴奴火鍋"></div>
+        <div class="grid grid-cols-2 gap-3">
+          <div><label class="fld">日期</label>
+            <select v-model="cform.date"><option v-for="d in days" :key="d.date" :value="d.date">{{ d.date.slice(5) }}（{{ d.zh }}）</option></select></div>
+          <div><label class="fld">金額（人民幣）</label><input type="number" inputmode="decimal" v-model="cform.amt"></div>
+        </div>
+        <div><label class="fld">付款方式</label>
+          <select v-model="cform.pay"><option>現金</option><option>信用卡</option></select></div>
+        <div><label class="fld">備註</label><input v-model="cform.note"></div>
+      </div>
+      <div class="flex gap-3 mt-6">
+        <button @click="cform=null" class="flex-1 py-3 rounded-2xl bg-white border border-[rgba(61,74,71,.12)]">取消</button>
+        <button @click="saveCost()" class="flex-1 py-3 rounded-2xl bg-[#7D9E88] text-white">儲存</button>
+      </div>
+      <button v-if="!cform.isNew" @click="delCost()" class="w-full mt-3 py-3 rounded-2xl text-[#C0736F] bg-[#F7ECEA]">刪除這筆</button>
+    </div>
+  </div>
+
+  <!-- ============ 購物 彈出視窗 ============ -->
+  <div v-if="sform" class="fixed inset-0 z-50 flex items-end" style="background:rgba(45,55,52,.35)" @click.self="sform=null">
+    <div class="w-full bg-[#FCF9F3] rounded-t-[1.75rem] p-5 pb-8 sheet-enter">
+      <div class="w-10 h-1 rounded-full bg-ink2/25 mx-auto mb-4"></div>
+      <h3 class="serif text-[20px] mb-4">想買的東西</h3>
+      <div><label class="fld">商品名稱</label><input v-model="sform.name" placeholder="例如 蘇州絲巾"></div>
+      <div class="mt-3">
+        <label class="fld">照片</label>
+        <label class="block w-full py-3 rounded-2xl bg-white border border-dashed border-[rgba(61,74,71,.25)] text-center text-[14px] text-ink2">
+          {{ sform.img ? '換一張照片' : '從手機選一張照片' }}
+          <input type="file" accept="image/*" class="hidden" @change="pic($event,sform)">
+        </label>
+        <img v-if="sform.img" :src="sform.img" class="mt-3 w-full rounded-2xl">
+      </div>
+      <div class="flex gap-3 mt-6">
+        <button @click="sform=null" class="flex-1 py-3 rounded-2xl bg-white border border-[rgba(61,74,71,.12)]">取消</button>
+        <button @click="saveShop()" class="flex-1 py-3 rounded-2xl bg-[#7D9E88] text-white">儲存</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+<script>
+/* ---------- 小工具：離線也不會壞掉的儲存 ---------- */
+var mem = {};
+var store = {
+  get: function (k, d) {
+    try { var v = localStorage.getItem('jn-' + k); return v ? JSON.parse(v) : (mem[k] !== undefined ? mem[k] : d); }
+    catch (e) { return mem[k] !== undefined ? mem[k] : d; }
+  },
+  set: function (k, v) {
+    mem[k] = v;
+    try { localStorage.setItem('jn-' + k, JSON.stringify(v)); } catch (e) {}
+  }
+};
+var uid = function () { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); };
+
+/* ---------- 每天的城市與座標（用來估交通時間、抓天氣） ---------- */
+var CITY = {
+  '2026-09-12': ['上海', 31.23, 121.47], '2026-09-13': ['上海', 31.23, 121.47],
+  '2026-09-14': ['蘇州', 31.30, 120.62], '2026-09-15': ['杭州', 30.25, 120.16],
+  '2026-09-16': ['烏鎮', 30.75, 120.49], '2026-09-17': ['烏鎮', 30.75, 120.49],
+  '2026-09-18': ['上海', 31.23, 121.47], '2026-09-19': ['上海', 31.23, 121.47],
+  '2026-09-20': ['上海', 31.23, 121.47]
+};
+/* 前一晚住的飯店（算當天第一段交通用） */
+var NIGHT = {
+  '2026-09-13': ['亞朵S 天山路', 31.210, 121.396], '2026-09-14': ['亞朵S 天山路', 31.210, 121.396],
+  '2026-09-15': ['亞朵S 天山路', 31.210, 121.396], '2026-09-16': ['桔子 西湖湖濱', 30.247, 120.167],
+  '2026-09-17': ['烏鎮西柵民宿', 30.746, 120.489], '2026-09-18': ['漢庭 中山公園', 31.221, 121.426],
+  '2026-09-19': ['漢庭 中山公園', 31.221, 121.426], '2026-09-20': ['漢庭 中山公園', 31.221, 121.426]
+};
+
+var P = function (n, cat, lat, lng, o) {
+  var x = { id: uid(), name: n, cat: cat, lat: lat, lng: lng, hours: '', ticket: '', note: '' };
+  for (var k in (o || {})) x[k] = o[k];
+  return x;
+};
+
+var SEED = {
+  '2026-09-12': [
+    { id: uid(), cat: '航班', name: 'CX449 國泰航空', from: 'KHH', to: 'PVG', dep: '07:30', arr: '13:15', dur: '含香港轉機 1h20m', note: '高雄出發，香港轉機後抵達浦東' },
+    P('國家會展中心 虹館', '其他', 31.192, 121.301, { hours: '19:00 開始', note: '落地後直接過去，先寄行李' }),
+    P('亞朵S 天山路', '住宿', 31.210, 121.396, { note: '12–15 三晚，¥8400' })
+  ],
+  '2026-09-13': [
+    P('定興路蛋餅攤', '美食', 31.213, 121.418, { hours: '早上', note: '早餐，賣完就收' }),
+    P('人民廣場相親角', '景點', 31.230, 121.472, { hours: '週末上午', ticket: '免費' }),
+    P('巴奴火鍋 人廣來福士店', '美食', 31.234, 121.476, { note: '建議先線上取號' }),
+    P('上海城市規劃展示館', '景點', 31.232, 121.474, { hours: '09:00–17:00', ticket: '¥30', note: '16:00 停止入館' }),
+    P('豫園', '景點', 31.227, 121.492, { hours: '09:00–16:30', ticket: '¥40' }),
+    P('東金線輪渡（往陸家嘴）', '其他', 31.240, 121.499, { ticket: '¥2', note: '刷乘車碼就能上船' }),
+    P('浦東美術館 西門日落長廊', '景點', 31.241, 121.497, { hours: '10:00–21:00', note: '傍晚去看江邊夕陽' })
+  ],
+  '2026-09-14': [
+    P('高鐵 上海→蘇州', '其他', 31.194, 121.320, { note: '虹橋出發，約 25 分鐘' }),
+    P('蘇州站南廣場 水上巴士', '其他', 31.316, 120.618, { note: '搭船進古城' }),
+    P('留園', '景點', 31.312, 120.595, { hours: '07:30–17:30', ticket: '¥45' }),
+    P('西園寺', '景點', 31.313, 120.585, { hours: '07:30–17:00', ticket: '¥5' }),
+    P('雙塔市集', '美食', 31.304, 120.628, { hours: '07:00–20:00' }),
+    P('七里山塘', '景點', 31.312, 120.598, { note: '傍晚開燈最漂亮' }),
+    P('寒山寺', '景點', 31.318, 120.575, { hours: '07:30–17:00', ticket: '¥20', note: '已預約' })
+  ],
+  '2026-09-15': [
+    P('嘉薈市場', '美食', 31.210, 121.400, { hours: '早上', note: '早餐' }),
+    P('高鐵 上海→杭州', '其他', 31.194, 121.320, { note: '虹橋出發，約 1 小時' }),
+    P('桔子 西湖湖濱解放路', '住宿', 30.247, 120.167, { note: '15–16 一晚，¥2300，Agoda 訂' }),
+    P('西湖', '景點', 30.245, 120.145, { ticket: '免費' }),
+    P('武林夜市', '購物', 30.276, 120.165, { hours: '18:00–23:00' }),
+    P('夜騎西湖', '其他', 30.245, 120.145, { note: '掃共享單車繞湖一圈' })
+  ],
+  '2026-09-16': [
+    P('靈隱寺', '景點', 30.241, 120.101, { hours: '07:00–18:00', ticket: '飛來峰 ¥45 + 寺 ¥30' }),
+    P('烏鎮西柵', '其他', 30.748, 120.487, { note: '包車、大巴或高鐵都可以' }),
+    P('遊客大廳 入住托運行李', '住宿', 30.746, 120.489, { note: '16–17 一晚，¥2500；順便問早茶客預約' }),
+    P('西柵景區夜遊', '景點', 30.748, 120.487, { ticket: '¥150' })
+  ],
+  '2026-09-17': [
+    P('早茶客', '美食', 30.748, 120.487, { hours: '07:30–09:30', note: '要先預約' }),
+    P('清晨的西柵', '景點', 30.748, 120.487, { note: '早點出門，人最少' }),
+    P('大巴 烏鎮→上海虹橋', '其他', 31.194, 121.320, { note: '約 1 小時 40 分' }),
+    P('漢庭 中山公園江蘇路', '住宿', 31.221, 121.426, { note: '17–20 三晚，¥7158' })
+  ],
+  '2026-09-18': [
+    P('中國證券博物館', '景點', 31.238, 121.487, { hours: '09:30–16:00', ticket: '免費，要預約' }),
+    P('乍浦路橋咖啡', '美食', 31.245, 121.488, { note: '橋上看外灘天際線' }),
+    P('海底撈大排檔 打浦路店', '美食', 31.205, 121.475, { note: '要提前取號' })
+  ],
+  '2026-09-19': [
+    P('張園', '景點', 31.228, 121.460, { hours: '10:00–22:00', ticket: '免費' })
+  ],
+  '2026-09-20': [
+    P('打車到浦東機場', '其他', 31.150, 121.805, { hours: '9:00 前出發', note: '車程約 1 小時' }),
+    { id: uid(), cat: '航班', name: 'CX376 國泰航空', from: 'PVG', to: 'KHH', dep: '12:20', arr: '18:10', dur: '含香港轉機 1h20m', note: '浦東出發，香港轉機後回高雄' }
+  ]
+};
+
+var DOW = [['Sun', '日'], ['Mon', '一'], ['Tue', '二'], ['Wed', '三'], ['Thu', '四'], ['Fri', '五'], ['Sat', '六']];
+
+var svg = function (p, w) {
+  return '<svg width="' + (w || 20) + '" height="' + (w || 20) + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>';
+};
+
+Vue.createApp({
+  data: function () {
+    var days = Object.keys(CITY).map(function (d) {
+      var dt = new Date(d + 'T00:00:00');
+      return { date: d, dow: DOW[dt.getDay()][0], zh: DOW[dt.getDay()][1], dd: Number(d.slice(8)) };
+    });
+    return {
+      tab: 'plan',
+      days: days,
+      active: store.get('active', days[0].date),
+      items: store.get('items', SEED),
+      shop: store.get('shop', []),
+      costs: store.get('costs', []),
+      weather: {},
+      rate: store.get('rate', 4.42),
+      rateNote: '離線暫用參考值',
+      cny: '', twd: '',
+      form: null, cform: null, sform: null, askDel: false,
+      dragI: null, dragY: 0, dragStartY: 0,
+      cats: ['景點', '住宿', '美食', '購物', '航班', '其他'],
+      costCats: ['交通', '飲食', '住宿', '門票', '購物', '其他'],
+      tabs: [
+        { k: 'plan', label: '每日行程', icon: svg('<path d="M12 21s7-5.5 7-11a7 7 0 1 0-14 0c0 5.5 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/>', 21) },
+        { k: 'info', label: '資訊', icon: svg('<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.6v.1"/>', 21) },
+        { k: 'shop', label: '購物清單', icon: svg('<path d="M4 8h16l-1.6 10.2a2 2 0 0 1-2 1.8H7.6a2 2 0 0 1-2-1.8L4 8z"/><path d="M9 8a3 3 0 0 1 6 0"/>', 21) },
+        { k: 'cost', label: '花費', icon: svg('<circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.5 9.5h4a1.8 1.8 0 0 1 0 3.6h-4M9.5 12h5"/>', 21) }
+      ],
+      flights: [
+        { id: 1, leg: '去程', date: '9/12（六）', name: '國泰航空 CX449', from: 'KHH', to: 'PVG', dep: '07:30', arr: '13:15', dur: '含轉機 7h45m', note: '高雄 → 香港轉機 1h20m → 上海浦東' },
+        { id: 2, leg: '回程', date: '9/20（日）', name: '國泰航空 CX376', from: 'PVG', to: 'KHH', dep: '12:20', arr: '18:10', dur: '含轉機 5h50m', note: '上海浦東 → 香港轉機 1h20m → 高雄' }
+      ],
+      hotels: [
+        { name: '亞朵S 上海天山路店', city: '上海', nights: '9/12–9/15', price: 8400, tel: '+862162598888', addr: '上海市長寧區天山路一帶' },
+        { name: '桔子酒店 杭州西湖湖濱解放路店', city: '杭州', nights: '9/15–9/16', price: 2300, tel: '+8657187654321', addr: '杭州市上城區解放路，近西湖湖濱' },
+        { name: '烏鎮西柵官方民宿', city: '烏鎮', nights: '9/16–9/17', price: 2500, tel: '+8657388731088', addr: '桐鄉市烏鎮西柵景區內' },
+        { name: '漢庭酒店 上海中山公園江蘇路店', city: '上海', nights: '9/17–9/20', price: 7158, tel: '+862152338888', addr: '上海市長寧區江蘇路，近中山公園' }
+      ],
+      emerg: [
+        { num: '110', label: '報警（公安）' }, { num: '120', label: '救護車' },
+        { num: '119', label: '火警' }, { num: '122', label: '交通事故' },
+        { num: '12308', label: '外交部領事保護' }, { num: '+886800085005', label: '海基會 24 小時專線' }
+      ]
+    };
+  },
+
+  computed: {
+    list: function () { return this.items[this.active] || []; },
+    total: function () { return this.costs.reduce(function (s, c) { return s + Number(c.amt || 0); }, 0); }
+  },
+
+  mounted: function () { this.getWeather(); this.getRate(); },
+
+  methods: {
+    /* --- 基本 --- */
+    pick: function (d) { this.active = d; store.set('active', d); },
+    persist: function () { store.set('items', this.items); },
+    cityOf: function (d) { return CITY[d] ? CITY[d][0] : ''; },
+    fx: function (v, r) { return v === '' || v === null ? '' : Math.round(Number(v) * r * 100) / 100; },
+
+    /* --- 地圖 --- */
+    amap: function (name, city) {
+      return 'https://uri.amap.com/search?keyword=' + encodeURIComponent(name) +
+             '&city=' + encodeURIComponent(city || '') + '&callnative=1';
+    },
+    gmap: function (name) { return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(name); },
+    openMap: function (it) { window.open(this.amap(it.name, this.cityOf(this.active)), '_blank'); },
+
+    /* --- 交通時間估算 --- */
+    leg: function (i) {
+      var cur = this.list[i]; if (!cur || cur.cat === '航班' || !cur.lat) return null;
+      var a;
+      if (i === 0) { var n = NIGHT[this.active]; if (!n) return null; a = { lat: n[1], lng: n[2] }; }
+      else {
+        for (var j = i - 1; j >= 0; j--) { if (this.list[j].lat) { a = this.list[j]; break; } }
+        if (!a) return null;
+      }
+      var R = 6371, t = Math.PI / 180;
+      var dLat = (cur.lat - a.lat) * t, dLng = (cur.lng - a.lng) * t;
+      var h = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+              Math.cos(a.lat * t) * Math.cos(cur.lat * t) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+      var km = 2 * R * Math.asin(Math.sqrt(h)) * 1.3;
+      if (km < 0.15) return null;
+      if (km < 1.5) return { mode: 'walk', label: '步行', min: Math.max(3, Math.round(km * 13)) };
+      if (km < 30) return { mode: 'bus', label: '大眾運輸', min: Math.round(km * 2.6 + 10) };
+      return { mode: 'car', label: '開車或高鐵', min: Math.round(km * 1.1 + 20) };
+    },
+
+    /* --- 圖示 --- */
+    moveIcon: function (m) {
+      if (m === 'walk') return svg('<circle cx="13" cy="4.5" r="1.6"/><path d="M11 21l1.5-5-2.5-2.5 1-4.5 3 2 2.5 1M9 21l2-5"/>', 16);
+      if (m === 'car') return svg('<path d="M5 16h14M6.5 16V12l1.8-4h7.4l1.8 4v4"/><circle cx="8" cy="17.5" r="1.5"/><circle cx="16" cy="17.5" r="1.5"/>', 16);
+      return svg('<rect x="6" y="4" width="12" height="12" rx="2.5"/><path d="M6 10h12M8.5 20l1.5-2M15.5 20L14 18"/><circle cx="9" cy="13.5" r=".8" fill="currentColor"/><circle cx="15" cy="13.5" r=".8" fill="currentColor"/>', 16);
+    },
+    catIcon: function (c) {
+      var m = {
+        '景點': '<path d="M12 21s7-5.5 7-11a7 7 0 1 0-14 0c0 5.5 7 11 7 11z"/><circle cx="12" cy="10" r="2.3"/>',
+        '住宿': '<path d="M4 19V8l8-4 8 4v11"/><path d="M9 19v-5h6v5"/>',
+        '美食': '<path d="M7 3v8M5 3v4a2 2 0 0 0 4 0V3M16 3c-1.5 2-2 4-2 6h4V3"/><path d="M7 11v10M16 9v12"/>',
+        '購物': '<path d="M4 8h16l-1.6 10.2a2 2 0 0 1-2 1.8H7.6a2 2 0 0 1-2-1.8L4 8z"/><path d="M9 8a3 3 0 0 1 6 0"/>',
+        '航班': '<path d="M21 16v-2l-8-5V4a1 1 0 0 0-2 0v5l-8 5v2l8-2.5V19l-2 1.5V22l3-1 3 1v-1.5L13 19v-5.5z"/>',
+        '交通': '<rect x="6" y="4" width="12" height="12" rx="2.5"/><path d="M6 10h12"/>',
+        '飲食': '<path d="M7 3v8M5 3v4a2 2 0 0 0 4 0V3M16 3c-1.5 2-2 4-2 6h4V3"/><path d="M7 11v10M16 9v12"/>',
+        '門票': '<path d="M3 9V6h18v3a2.5 2.5 0 0 0 0 5v4H3v-4a2.5 2.5 0 0 0 0-5z"/>',
+        '其他': '<circle cx="12" cy="12" r="8"/><path d="M12 8v4l2.5 2"/>'
+      };
+      return '<span style="color:#5C7566">' + svg(m[c] || m['其他'], 19) + '</span>';
+    },
+    catBg: function (c) {
+      var m = { '景點': '#DCE9DE', '住宿': '#E2E9EE', '美食': '#F3E4D8', '購物': '#F2DEE3', '航班': '#E3E7EC', '其他': '#E9E7DE',
+                '交通': '#E2E9EE', '飲食': '#F3E4D8', '門票': '#DCE9DE' };
+      return m[c] || '#E9E7DE';
+    },
+    wxIcon: function (code) {
+      var g = '<span style="color:#8CA9B4">';
+      if (code === undefined || code === null) return g + svg('<circle cx="12" cy="12" r="8" stroke-dasharray="3 3"/>', 40) + '</span>';
+      if (code >= 71 && code <= 79 || code === 85 || code === 86)
+        return g + svg('<path d="M12 4v16M5 8l14 8M19 8L5 16"/>', 40) + '</span>';
+      if (code >= 51 && code <= 67 || code >= 80 && code <= 82 || code >= 95)
+        return g + svg('<path d="M7 15a4 4 0 0 1 .6-8 5.5 5.5 0 0 1 10.4 1.8A3.2 3.2 0 0 1 17.5 15z"/><path d="M9 18l-1 2.5M13 18l-1 2.5M17 18l-1 2.5"/>', 40) + '</span>';
+      if (code >= 2 && code <= 48)
+        return g + svg('<path d="M7 17a4 4 0 0 1 .6-8 5.5 5.5 0 0 1 10.4 1.8A3.2 3.2 0 0 1 17.5 17z"/>', 40) + '</span>';
+      return '<span style="color:#E0B77E">' + svg('<circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M18.7 5.3l-1.6 1.6M6.9 17.1l-1.6 1.6"/>', 40) + '</span>';
+    },
+    wxText: function (c) {
+      if (c === 0) return '晴';
+      if (c <= 2) return '晴時多雲';
+      if (c === 3) return '陰';
+      if (c <= 48) return '有霧';
+      if (c <= 57) return '毛毛雨';
+      if (c <= 67) return '下雨';
+      if (c <= 77) return '下雪';
+      if (c <= 82) return '陣雨';
+      if (c <= 86) return '陣雪';
+      return '雷雨';
+    },
+
+    /* --- 天氣（Open-Meteo，免金鑰） --- */
+    getWeather: function () {
+      var self = this, seen = {};
+      this.days.forEach(function (d) {
+        var c = CITY[d.date], key = c[1] + ',' + c[2];
+        if (seen[key]) return; seen[key] = 1;
+        var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + c[1] + '&longitude=' + c[2] +
+          '&daily=weather_code,temperature_2m_max,temperature_2m_min,apparent_temperature_max' +
+          '&timezone=Asia%2FShanghai&start_date=2026-09-12&end_date=2026-09-20';
+        fetch(url).then(function (r) { return r.json(); }).then(function (j) {
+          if (!j.daily) return;
+          j.daily.time.forEach(function (t, i) {
+            if (!CITY[t] || CITY[t][1] !== c[1]) return;
+            self.weather[t] = {
+              code: j.daily.weather_code[i],
+              text: self.wxText(j.daily.weather_code[i]),
+              max: Math.round(j.daily.temperature_2m_max[i]),
+              min: Math.round(j.daily.temperature_2m_min[i]),
+              feels: Math.round(j.daily.apparent_temperature_max[i])
+            };
+          });
+        }).catch(function () {});
+      });
+    },
+
+    /* --- 匯率 --- */
+    getRate: function () {
+      var self = this;
+      fetch('https://open.er-api.com/v6/latest/CNY').then(function (r) { return r.json(); }).then(function (j) {
+        if (j && j.rates && j.rates.TWD) {
+          self.rate = j.rates.TWD; store.set('rate', j.rates.TWD);
+          self.rateNote = (j.time_last_update_utc || '').slice(5, 16) + ' 更新';
+        }
+      }).catch(function () {});
+    },
+
+    /* --- 行程 CRUD --- */
+    add: function () { this.form = { isNew: true, id: uid(), cat: '景點', name: '', hours: '', ticket: '', note: '', from: '', to: '', dep: '', arr: '', dur: '' }; },
+    edit: function (it) { this.form = Object.assign({ isNew: false }, it); },
+    save: function () {
+      var f = this.form; if (!f.name) { f.name = '未命名'; }
+      var arr = (this.items[this.active] || []).slice();
+      var o = Object.assign({}, f); delete o.isNew;
+      var i = arr.findIndex(function (x) { return x.id === o.id; });
+      if (i < 0) arr.push(o); else arr[i] = Object.assign({}, arr[i], o);
+      this.items[this.active] = arr; this.persist(); this.form = null;
+    },
+    del: function () {
+      var id = this.form.id;
+      this.items[this.active] = (this.items[this.active] || []).filter(function (x) { return x.id !== id; });
+      this.persist(); this.askDel = false; this.form = null;
+    },
+
+    /* --- 拖曳排序 --- */
+    dragStart: function (e, i) { this.dragI = i; this.dragStartY = e.clientY; this.dragY = 0; e.currentTarget.setPointerCapture(e.pointerId); },
+    dragMove: function (e) {
+      if (this.dragI === null) return;
+      e.preventDefault();
+      this.dragY = e.clientY - this.dragStartY;
+      var cards = Array.prototype.slice.call(this.$refs.list.querySelectorAll('.trip-card'));
+      var cur = cards[this.dragI]; if (!cur) return;
+      var r = cur.getBoundingClientRect(), mid = r.top + r.height / 2, t = this.dragI, self = this;
+      cards.forEach(function (c, j) {
+        if (j === self.dragI) return;
+        var m = c.getBoundingClientRect(); var cm = m.top + m.height / 2;
+        if (j > self.dragI && mid > cm) t = Math.max(t, j);
+        if (j < self.dragI && mid < cm) t = Math.min(t, j);
+      });
+      if (t !== this.dragI) {
+        var arr = this.items[this.active].slice();
+        arr.splice(t, 0, arr.splice(this.dragI, 1)[0]);
+        this.items[this.active] = arr;
+        this.dragI = t; this.dragStartY = e.clientY; this.dragY = 0;
+      }
+    },
+    dragEnd: function () { if (this.dragI !== null) { this.dragI = null; this.dragY = 0; this.persist(); } },
+
+    /* --- 購物 --- */
+    addShop: function () { this.sform = { isNew: true, id: uid(), name: '', img: '' }; },
+    saveShop: function () {
+      var f = this.sform; if (!f.name) f.name = '未命名';
+      var arr = this.shop.slice(), o = Object.assign({}, f); delete o.isNew;
+      var i = arr.findIndex(function (x) { return x.id === o.id; });
+      if (i < 0) arr.push(o); else arr[i] = o;
+      this.shop = arr; store.set('shop', arr); this.sform = null;
+    },
+    delShop: function (s) { this.shop = this.shop.filter(function (x) { return x.id !== s.id; }); store.set('shop', this.shop); },
+    pic: function (e, target) {
+      var file = e.target.files[0]; if (!file) return; var self = this;
+      var rd = new FileReader();
+      rd.onload = function (ev) {
+        var img = new Image();
+        img.onload = function () {
+          var max = 700, s = Math.min(1, max / Math.max(img.width, img.height));
+          var cv = document.createElement('canvas');
+          cv.width = img.width * s; cv.height = img.height * s;
+          cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+          target.img = cv.toDataURL('image/jpeg', 0.75);
+          if (!target.isNew) { store.set('shop', self.shop); }
+        };
+        img.src = ev.target.result;
+      };
+      rd.readAsDataURL(file);
+    },
+
+    /* --- 花費 --- */
+    addCost: function () {
+      var t = new Date(), iso = t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0');
+      this.cform = { isNew: true, id: uid(), cat: '飲食', name: '', date: CITY[iso] ? iso : this.active, amt: '', pay: '現金', note: '' };
+    },
+    editCost: function (c) { this.cform = Object.assign({ isNew: false }, c); },
+    saveCost: function () {
+      var f = this.cform; if (!f.name) f.name = '未命名';
+      var arr = this.costs.slice(), o = Object.assign({}, f); delete o.isNew;
+      var i = arr.findIndex(function (x) { return x.id === o.id; });
+      if (i < 0) arr.push(o); else arr[i] = o;
+      arr.sort(function (a, b) { return a.date < b.date ? -1 : 1; });
+      this.costs = arr; store.set('costs', arr); this.cform = null;
+    },
+    delCost: function () {
+      var id = this.cform.id;
+      this.costs = this.costs.filter(function (x) { return x.id !== id; });
+      store.set('costs', this.costs); this.cform = null;
+    }
+  }
+}).mount('#app');
+</script>
+</body>
+</html>
