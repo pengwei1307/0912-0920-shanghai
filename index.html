@@ -145,7 +145,13 @@
         style="background:transparent">
 
     <!-- 分頁按鈕：貼在內容區頂端，捲動時跟著走，不蓋到 banner -->
-    <div class="sticky top-2 z-40 flex justify-end px-4 pt-3 pb-1 pointer-events-none">
+    <div class="sticky top-2 z-40 flex justify-between items-start px-4 pt-3 pb-1 pointer-events-none">
+      <div v-if="sync!=='off' && sync!=='paused'"
+           class="flex items-center gap-1.5 h-9 px-2.5 rounded-2xl tabbar pointer-events-auto text-[12.5px]"
+           :style="{ color: badgeOk() ? '#5B7A64' : '#8A948F' }">
+        <span v-html="badgeIcon()"></span><span>{{ badgeText() }}</span>
+      </div>
+      <div v-else></div>
       <nav class="flex gap-1 p-1 rounded-2xl tabbar pointer-events-auto">
         <button v-for="t in tabs" :key="t.k" @click="tab=t.k"
                 class="w-11 h-11 rounded-xl flex items-center justify-center transition"
@@ -797,7 +803,7 @@ Vue.createApp({
       cny: '', twd: '',
       form: null, cform: null, sform: null, askDel: false,
       confirmReset: false, msg: '',
-      sync: 'off', lastAt: 0,
+      sync: 'off', lastAt: 0, pushState: 'idle',
       dragI: null, dragY: 0, dragStartY: 0,
       cats: ['景點', '住宿', '美食', '購物', '航班', '其他'],
       costCats: ['交通', '飲食', '住宿', '門票', '購物', '其他'],
@@ -969,10 +975,8 @@ Vue.createApp({
           fbRef.on('value', function (snap) {
             var d = snap.val();
             self.sync = 'on';
-            if (!d) { self.pushNow(); return; }          // 雲端還是空的，把自己這份送上去
-            if (d.by === DEVICE) { return; }             // 自己剛送出的，不用再套用
-            if (d.at && d.at <= self.lastAt) { return; } // 比手上的舊，忽略
-            self.lastAt = d.at || 0;
+            if (!d) { self.pushNow(); return; }   // 雲端還是空的，把自己這份送上去
+            if (d.by === DEVICE) { self.mark('saved'); return; }  // 自己剛送出的
             if (d.items) { self.items = d.items; }
             self.notes = d.notes || [];
             self.shop = d.shop || [];
@@ -981,6 +985,7 @@ Vue.createApp({
             store.set('notes', self.notes);
             store.set('shop', self.shop);
             store.set('costs', self.costs);
+            self.mark('saved');
           }, function () { self.sync = 'error'; });
           firebase.database().ref('.info/connected').on('value', function (c) {
             self.sync = c.val() ? 'on' : 'offline';
@@ -996,15 +1001,36 @@ Vue.createApp({
     },
     pushNow: function () {
       if (!fbRef) { return; }
-      var at = Date.now();
+      var self = this, at = Date.now();
       this.lastAt = at;
+      this.mark('saving');
       fbRef.set({
         items: JSON.parse(JSON.stringify(this.items)),
         notes: JSON.parse(JSON.stringify(this.notes)),
         shop: JSON.parse(JSON.stringify(this.shop)),
         costs: JSON.parse(JSON.stringify(this.costs)),
         at: at, by: DEVICE
-      }).catch(function () {});
+      }).then(function () { self.mark('saved'); })
+        .catch(function () { self.mark('fail'); });
+    },
+    mark: function (st) { this.pushState = st; },
+    badgeText: function () {
+      if (this.sync === 'connecting') { return '連線中'; }
+      if (this.sync === 'offline') { return '離線'; }
+      if (this.sync === 'error' || this.pushState === 'fail') { return '未同步'; }
+      if (this.pushState === 'saving') { return '傳送中'; }
+      if (this.pushState === 'saved') { return '已同步'; }
+      return '待同步';
+    },
+    badgeOk: function () { return this.sync === 'on' && this.pushState === 'saved'; },
+    badgeIcon: function () {
+      if (this.badgeOk()) {
+        return svg('<circle cx="12" cy="12" r="9"/><path d="M8.2 12.3l2.6 2.6 5-5.2"/>', 17);
+      }
+      if (this.pushState === 'saving') {
+        return svg('<path d="M12 4v3M12 17v3M4 12h3M17 12h3M6.3 6.3l2.1 2.1M15.6 15.6l2.1 2.1M17.7 6.3l-2.1 2.1M8.4 15.6l-2.1 2.1"/>', 17);
+      }
+      return svg('<path d="M7 17a4 4 0 0 1 .6-8 5.5 5.5 0 0 1 9.6.6"/><path d="M3.5 3.5l17 17"/>', 17);
     },
     syncText: function () {
       return { off: '沒有設定同步，資料只留在這支手機',
