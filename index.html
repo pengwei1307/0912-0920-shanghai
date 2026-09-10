@@ -444,11 +444,10 @@
             <span v-else class="text-ink2/40 text-[13px]">沒有照片</span>
           </div>
           <div class="p-3 flex items-start justify-between gap-2">
-            <div class="min-w-0">
+            <div class="min-w-0 flex-1">
               <div class="text-[14.5px] truncate">{{ s.name }}</div>
-              <label class="text-[12px] text-[#7D9E88] mt-1 inline-block">
-                換照片<input type="file" accept="image/*" class="hidden" @change="pic($event,s)">
-              </label>
+              <div v-if="s.note" class="text-[12.5px] text-ink2 mt-1 whitespace-pre-line leading-snug">{{ s.note }}</div>
+              <button @click="editShop(s)" class="text-[12px] text-[#7D9E88] mt-1.5">編輯</button>
             </div>
             <button @click="delShop(s)" class="text-ink2/50 text-[12px] shrink-0">刪除</button>
           </div>
@@ -500,6 +499,10 @@
       <h3 class="serif text-[20px] mb-4">{{ form.isNew ? '新增行程' : '編輯行程' }}</h3>
 
       <div class="space-y-3">
+        <div><label class="fld">日期</label>
+          <select v-model="form.date">
+            <option v-for="d in days" :key="d.date" :value="d.date">{{ d.date.slice(5) }}（{{ d.zh }}）</option>
+          </select></div>
         <div><label class="fld">分類</label>
           <select v-model="form.cat"><option v-for="c in cats" :key="c">{{ c }}</option></select></div>
         <div><label class="fld">名稱</label><input v-model="form.name" placeholder="例如 豫園"></div>
@@ -616,8 +619,10 @@
   <div v-if="sform" class="fixed inset-0 z-50 flex items-end" style="background:rgba(45,55,52,.35)" @click.self="sform=null">
     <div class="w-full bg-[#FCF9F3] rounded-t-[1.75rem] p-5 pb-8 sheet-enter">
       <div class="w-10 h-1 rounded-full bg-ink2/25 mx-auto mb-4"></div>
-      <h3 class="serif text-[20px] mb-4">想買的東西</h3>
+      <h3 class="serif text-[20px] mb-4">{{ sform.isNew ? '想買的東西' : '編輯' }}</h3>
       <div><label class="fld">商品名稱</label><input v-model="sform.name" placeholder="例如 蘇州絲巾"></div>
+      <div class="mt-3"><label class="fld">記事</label>
+        <textarea v-model="sform.note" rows="4" placeholder="價格、店家、尺寸、幫誰買…"></textarea></div>
       <div class="mt-3">
         <label class="fld">照片</label>
         <label class="block w-full py-3 rounded-2xl bg-white border border-dashed border-[rgba(61,74,71,.25)] text-center text-[14px] text-ink2">
@@ -1131,19 +1136,39 @@ Vue.createApp({
     },
 
     /* --- 行程 CRUD --- */
-    add: function () { this.form = { isNew: true, id: uid(), cat: '景點', name: '', hours: '', ticket: '', note: '', mode: '', mins: '', from: '', to: '', dep: '', arr: '', dur: '' }; },
-    edit: function (it) { this.form = Object.assign({ isNew: false }, it); },
+    add: function () {
+      this.form = { isNew: true, id: uid(), date: this.active, src: this.active, cat: '景點',
+                    name: '', hours: '', ticket: '', note: '', mode: '', mins: '',
+                    from: '', to: '', dep: '', arr: '', dur: '' };
+    },
+    edit: function (it) {
+      this.form = Object.assign({ isNew: false, date: this.active, src: this.active }, it, { date: this.active });
+    },
     save: function () {
       var f = this.form; if (!f.name) { f.name = '未命名'; }
-      var arr = (this.items[this.active] || []).slice();
-      var o = Object.assign({}, f); delete o.isNew;
-      var i = arr.findIndex(function (x) { return x.id === o.id; });
-      if (i < 0) arr.push(o); else arr[i] = Object.assign({}, arr[i], o);
-      this.items[this.active] = arr; this.persist(); this.form = null;
+      var to = f.date || this.active, from = f.src || this.active;
+      var o = Object.assign({}, f);
+      delete o.isNew; delete o.date; delete o.src;
+
+      if (!this.items[from]) { this.items[from] = []; }
+      if (!this.items[to]) { this.items[to] = []; }
+
+      if (to !== from) {                                   // 換到別天
+        this.items[from] = this.items[from].filter(function (x) { return x.id !== o.id; });
+        this.items[to] = this.items[to].concat([o]);
+      } else {
+        var arr = this.items[to].slice();
+        var i = arr.findIndex(function (x) { return x.id === o.id; });
+        if (i < 0) { arr.push(o); } else { arr[i] = Object.assign({}, arr[i], o); }
+        this.items[to] = arr;
+      }
+      this.persist();
+      this.form = null;
+      if (to !== this.active) { this.pick(to); }           // 跳到那天，看得到剛才加的
     },
     del: function () {
-      var id = this.form.id;
-      this.items[this.active] = (this.items[this.active] || []).filter(function (x) { return x.id !== id; });
+      var id = this.form.id, d = this.form.src || this.active;
+      this.items[d] = (this.items[d] || []).filter(function (x) { return x.id !== id; });
       this.persist(); this.askDel = false; this.form = null;
     },
 
@@ -1189,9 +1214,11 @@ Vue.createApp({
     },
 
     /* --- 購物 --- */
-    addShop: function () { this.sform = { isNew: true, id: uid(), name: '', img: '' }; },
+    addShop: function () { this.sform = { isNew: true, id: uid(), name: '', note: '', img: '' }; },
+    editShop: function (x) { this.sform = Object.assign({ isNew: false }, x); },
     saveShop: function () {
       var f = this.sform; if (!f.name) f.name = '未命名';
+      if (f.note === undefined) { f.note = ''; }
       var arr = this.shop.slice(), o = Object.assign({}, f); delete o.isNew;
       var i = arr.findIndex(function (x) { return x.id === o.id; });
       if (i < 0) arr.push(o); else arr[i] = o;
